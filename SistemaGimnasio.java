@@ -103,8 +103,8 @@ public class SistemaGimnasio {
                 System.out.println("\nMenú Principal:");
                 System.out.println("1. Gestión de Empleados");
                 System.out.println("2. Gestión de Clientes");
-                System.out.println("3. Gestión de Tienda");
-                System.out.println("4. Gestión de Actividades");
+                System.out.println("3. Gestión de Actividades");
+                System.out.println("4. Gestión de Tienda");
                 System.out.println("5. Listar Tablas");
                 System.out.println("6. Salir");
                 System.out.print("Elige una opción: ");
