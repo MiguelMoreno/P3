@@ -4,6 +4,12 @@ import java.util.Scanner;
 public class GestionEmpleados {
 
     private static void insertarEmpleado(Connection conn, int id, String nombre, String rol) {
+        // Verificar que el rol sea válido
+        if (!rol.equalsIgnoreCase("Administrador") && !rol.equalsIgnoreCase("Entrenador")) {
+            System.out.println("Error: El rol debe ser 'Administrador' o 'Entrenador'.");
+            return;
+        }
+    
         String query = "INSERT INTO Empleado (idEmpleado, nombre, rol) VALUES (?, ?, ?)";
         try (PreparedStatement pstmt = conn.prepareStatement(query)) {
             pstmt.setInt(1, id);
@@ -17,6 +23,7 @@ public class GestionEmpleados {
             rollback(conn);
         }
     }
+    
 
     private static void listarEmpleados(Connection conn) {
         String query = "SELECT * FROM Empleado";
