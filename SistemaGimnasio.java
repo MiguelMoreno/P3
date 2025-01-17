@@ -113,21 +113,25 @@ public class SistemaGimnasio {
 
                 switch (opcion) {
                     case 1:
-                        System.out.println("Gestión de Empleados no implementada en esta versión.");
+                        // Llamar a la clase GestionEmpleados para gestionar empleados
+                        GestionEmpleados.mostrarMenuGestionEmpleados(conn, scanner);
                         break;
                     case 2:
                         System.out.println("Gestión de Clientes no implementada en esta versión.");
                         break;
                     case 3:
-                        System.out.println("Gestión de Productos no implementada en esta versión.");
+                        System.out.println("Gestión de Actividades no implementada en esta versión.");
                         break;
                     case 4:
+                        System.out.println("Gestión de Tienda no implementada en esta versión.");
+                        break;
+                    case 5:
                         listarTablas(conn);
                         System.out.print("Introduce el nombre de la tabla que deseas consultar: ");
                         String nombreTabla = scanner.nextLine();
                         listarDatosDeTabla(conn, nombreTabla);
                         break;
-                    case 5:
+                    case 6:
                         salir = true;
                         System.out.println("Saliendo del sistema...");
                         break;
