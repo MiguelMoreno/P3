@@ -78,19 +78,25 @@ public class GestionEmpleados {
     /***************************************************/
 
     private static void listarEmpleados(Connection conn) {
-        String query = "SELECT * FROM Empleado";
+        String query = "SELECT * FROM Empleado WHERE Eliminado = 0";
         try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
             System.out.println("Lista de empleados:");
+            boolean hayEmpleados = false;
             while (rs.next()) {
+                hayEmpleados = true;
                 // Mostrar ID, Nombre, Correo Electrónico y Rol
                 System.out.println("ID: " + rs.getInt("ID_Empleado") + ", Nombre: " + rs.getString("Nombre") + 
                                    ", Correo Electrónico: " + rs.getString("Correo_Electronico") + 
                                    ", Rol: " + rs.getString("ROL"));
             }
+            if (!hayEmpleados) {
+                System.out.println("No hay empleados activos para mostrar.");
+            }
         } catch (SQLException e) {
             System.err.println("Error al listar empleados: " + e.getMessage());
         }
-    }    
+    }
+    
 
     /***************************************************/
     /* ACTUALIZAR EMPLEADO */
@@ -121,14 +127,14 @@ public class GestionEmpleados {
 
     private static void eliminarEmpleado(Connection conn, int id) {
         try {
-            // Comprobar si el empleado existe en las tablas de Administrador y Entrenador antes de intentar eliminarlo
+            // Comprobar si el empleado existe en la tabla Empleado
             String queryCheckEmpleado = "SELECT COUNT(*) FROM Empleado WHERE ID_Empleado = ?";
             try (PreparedStatement pstmt = conn.prepareStatement(queryCheckEmpleado)) {
                 pstmt.setInt(1, id);
                 try (ResultSet rs = pstmt.executeQuery()) {
                     if (rs.next() && rs.getInt(1) == 0) {
                         System.out.println("No se encontró ningún empleado con el ID especificado.");
-                        return;  // No existe el empleado, no hacemos nada
+                        return; // No existe el empleado, no hacemos nada
                     }
                 }
             }
@@ -136,48 +142,49 @@ public class GestionEmpleados {
             // Deshabilitar autocommit para manejar la transacción manualmente
             conn.setAutoCommit(false);
     
-            // Eliminar de la tabla Administrador si existe el registro
-            String queryAdmin = "DELETE FROM Administrador WHERE ID_Empleado = ?";
+            // Actualizar el campo Eliminado en la tabla Administrador si existe el registro
+            String queryAdmin = "UPDATE Administrador SET Eliminado = 1 WHERE ID_Empleado = ?";
             try (PreparedStatement pstmt = conn.prepareStatement(queryAdmin)) {
                 pstmt.setInt(1, id);
-                int filasAfectadasAdmin = pstmt.executeUpdate();
-                System.out.println("Filas afectadas en Administrador: " + filasAfectadasAdmin);
+                //int filasAfectadasAdmin = pstmt.executeUpdate();
+                //System.out.println("Filas actualizadas en Administrador: " + filasAfectadasAdmin);
             }
     
-            // Eliminar de la tabla Entrenador si existe el registro
-            String queryEntrenador = "DELETE FROM Entrenador WHERE ID_Empleado = ?";
+            // Actualizar el campo Eliminado en la tabla Entrenador si existe el registro
+            String queryEntrenador = "UPDATE Entrenador SET Eliminado = 1 WHERE ID_Empleado = ?";
             try (PreparedStatement pstmt = conn.prepareStatement(queryEntrenador)) {
                 pstmt.setInt(1, id);
-                int filasAfectadasEntrenador = pstmt.executeUpdate();
-                System.out.println("Filas afectadas en Entrenador: " + filasAfectadasEntrenador);
+                //int filasAfectadasEntrenador = pstmt.executeUpdate();
+                //System.out.println("Filas actualizadas en Entrenador: " + filasAfectadasEntrenador);
             }
     
-            // Ahora eliminar al empleado de la tabla Empleado
-            String queryEmpleado = "DELETE FROM Empleado WHERE ID_Empleado = ?";
+            // Actualizar el campo Eliminado en la tabla Empleado
+            String queryEmpleado = "UPDATE Empleado SET Eliminado = 1 WHERE ID_Empleado = ?";
             try (PreparedStatement pstmt = conn.prepareStatement(queryEmpleado)) {
                 pstmt.setInt(1, id);
                 int filasAfectadasEmpleado = pstmt.executeUpdate();
-                System.out.println("Filas afectadas en Empleado: " + filasAfectadasEmpleado);
+                //System.out.println("Filas actualizadas en Empleado: " + filasAfectadasEmpleado);
     
                 if (filasAfectadasEmpleado > 0) {
                     conn.commit();
-                    System.out.println("Empleado eliminado correctamente.");
+                    System.out.println("Empleado marcado como eliminado correctamente.");
                 } else {
                     System.out.println("No se encontró ningún empleado con el ID especificado.");
                 }
             }
     
         } catch (SQLException e) {
-            System.err.println("Error durante la eliminación: " + e.getMessage());
+            System.err.println("Error durante la actualización del campo 'Eliminado': " + e.getMessage());
             rollback(conn);
         } finally {
             try {
-                conn.setAutoCommit(true);  // Volver a habilitar autocommit después de la transacción
+                conn.setAutoCommit(true); // Volver a habilitar autocommit después de la transacción
             } catch (SQLException e) {
                 System.err.println("Error al restaurar autocommit: " + e.getMessage());
             }
         }
-    }    
+    }
+    
 
     /***************************************************/
     /* MENU */
