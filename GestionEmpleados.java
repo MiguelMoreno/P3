@@ -1,11 +1,3 @@
-// Práctica 3 DDSI 3ºA-3 Grupo4
-/* Por:
-Miguel Moreno Murcia
-Santiago Romero Alonso
-Alberto García Lara
-Miguel Álvarez de Cienfuegos Cortés
-*/
-
 import java.sql.*;
 import java.util.Scanner;
 
@@ -16,15 +8,8 @@ public class GestionEmpleados {
     /***************************************************/
 
     private static void insertarEmpleado(Connection conn, int id, String nombre, String correo, String rol) {
-        // Verificar que el rol sea válido
-        if (!rol.equalsIgnoreCase("Administrador") && !rol.equalsIgnoreCase("Entrenador")) {
-            System.out.println("Error: El rol debe ser 'Administrador' o 'Entrenador'.");
-            return;
-        }
-    
-        // Iniciar la transacción
         try {
-            conn.setAutoCommit(false); // Deshabilitar autocommit para manejar la transacción manualmente
+            conn.setAutoCommit(false);
     
             // Insertar en la tabla Empleado
             String query = "INSERT INTO Empleado (ID_Empleado, Nombre, Correo_Electronico, ROL) VALUES (?, ?, ?, ?)";
@@ -32,7 +17,7 @@ public class GestionEmpleados {
                 pstmt.setInt(1, id);
                 pstmt.setString(2, nombre);
                 pstmt.setString(3, correo);
-                pstmt.setString(4, rol);  // Insertar el rol
+                pstmt.setString(4, rol);
                 pstmt.executeUpdate();
             }
     
@@ -43,21 +28,19 @@ public class GestionEmpleados {
                 insertarEntrenador(conn, id);
             }
     
-            // Si todo fue bien, confirmar la transacción
             conn.commit();
             System.out.println("Empleado insertado correctamente.");
         } catch (SQLException e) {
-            // Si ocurre un error, revertir la transacción
             manejarErroresSQL(e);
             rollback(conn);
         } finally {
             try {
-                conn.setAutoCommit(true); // Volver a habilitar el autocommit después de la transacción
+                conn.setAutoCommit(true);
             } catch (SQLException e) {
                 manejarErroresSQL(e);
             }
         }
-    }
+    }    
     
     private static void insertarAdministrador(Connection conn, int idEmpleado) {
         String query = "INSERT INTO Administrador (ID_Empleado) VALUES (?)";
@@ -193,6 +176,114 @@ public class GestionEmpleados {
         }
     }
     
+    /***************************************************/
+    /* CREAR RUTINA PARA CLIENTE */
+    /***************************************************/
+
+    private static void insertarRutina(Connection conn, int idEmpleado, int idCliente, String descripcion, String[] ejercicios, int duracion) {
+        try {
+            // Comprobar si el empleado es un Administrador
+            if (!esAdministrador(conn, idEmpleado)) {
+                System.out.println("El empleado no tiene permisos de administrador.");
+                return;  // Terminamos la operación si no es administrador
+            }
+    
+            // Verificar si el cliente existe
+            if (!existeCliente(conn, idCliente)) {
+                System.out.println("No existe un cliente con el ID especificado.");
+                return;  // Terminamos la operación si el cliente no existe
+            }
+    
+            // Verificar si ya existe una rutina con el mismo nombre para el cliente
+            if (rutinaExistente(conn, idCliente, descripcion)) {
+                System.out.println("Ya existe una rutina con ese nombre para este cliente.");
+                return;  // Terminamos la operación si la rutina ya existe
+            }
+    
+            // Validar que haya al menos un ejercicio
+            if (ejercicios == null || ejercicios.length == 0) {
+                System.out.println("La rutina debe contener al menos un ejercicio.");
+                return;  // Terminamos la operación si no hay ejercicios
+            }
+    
+            // Validar que la duración no supere los 180 minutos
+            if (duracion > 180) {
+                System.out.println("La duración máxima de la rutina es de 180 minutos.");
+                return;  // Terminamos la operación si la duración es inválida
+            }
+    
+            // Crear el tipo VARRAY de ejercicios
+            Array ejerciciosArray = conn.createArrayOf("VARCHAR", ejercicios);
+    
+            // Insertar la rutina en la tabla TieneRutina
+            String queryInsertRutina = "INSERT INTO TieneRutina (ID_Cliente, Ejercicios, Duracion, Descripcion) VALUES (?, ?, ?, ?)";
+            try (PreparedStatement pstmt = conn.prepareStatement(queryInsertRutina)) {
+                pstmt.setInt(1, idCliente);
+                pstmt.setArray(2, ejerciciosArray);
+                pstmt.setInt(3, duracion);
+                pstmt.setString(4, descripcion);
+                pstmt.executeUpdate();
+            }
+    
+            conn.commit();
+            System.out.println("Rutina insertada correctamente.");
+        } catch (SQLException e) {
+            manejarErroresSQL(e);
+            rollback(conn);
+        } finally {
+            try {
+                conn.setAutoCommit(true); // Restaurar el autocommit
+            } catch (SQLException e) {
+                manejarErroresSQL(e);
+            }
+        }
+    }
+
+    private static boolean esAdministrador(Connection conn, int idEmpleado) {
+        String query = "SELECT COUNT(*) FROM Empleado WHERE ID_Empleado = ? AND ROL = 'Administrador' AND Eliminado = 0";
+        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setInt(1, idEmpleado);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next() && rs.getInt(1) > 0) {
+                    return true;  // El empleado es un Administrador
+                }
+            }
+        } catch (SQLException e) {
+            manejarErroresSQL(e);
+        }
+        return false;  // No es un Administrador
+    }
+    
+    private static boolean existeCliente(Connection conn, int idCliente) {
+        String query = "SELECT COUNT(*) FROM ClienteIncluyeSuscripcion_Invitacion WHERE ID_Cliente = ? AND Eliminado = 0";
+        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setInt(1, idCliente);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next() && rs.getInt(1) > 0) {
+                    return true;  // El cliente existe
+                }
+            }
+        } catch (SQLException e) {
+            manejarErroresSQL(e);
+        }
+        return false;  // El cliente no existe
+    }
+
+    private static boolean rutinaExistente(Connection conn, int idCliente, String descripcion) {
+        String query = "SELECT COUNT(*) FROM TieneRutina WHERE ID_Cliente = ? AND Descripcion = ? AND Eliminado = 0";
+        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setInt(1, idCliente);
+            pstmt.setString(2, descripcion);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next() && rs.getInt(1) > 0) {
+                    return true;  // Ya existe una rutina con ese nombre
+                }
+            }
+        } catch (SQLException e) {
+            manejarErroresSQL(e);
+        }
+        return false;  // No existe la rutina
+    }    
 
     /***************************************************/
     /* MENU */
@@ -206,7 +297,8 @@ public class GestionEmpleados {
             System.out.println("2. Listar Empleados");
             System.out.println("3. Actualizar Empleado");
             System.out.println("4. Eliminar Empleado");
-            System.out.println("5. Volver al Menú Principal");
+            System.out.println("5. Crear Rutina");
+            System.out.println("6. Volver al Menú Principal");
             System.out.print("Elige una opción: ");
 
             int opcion = scanner.nextInt();
@@ -248,6 +340,28 @@ public class GestionEmpleados {
                     eliminarEmpleado(conn, idEliminar);
                     break;
                 case 5:
+                    System.out.print("ID del Empleado (Administrador): ");
+                    int idEmpleado = scanner.nextInt();
+                    scanner.nextLine(); // Consumir el salto de línea
+
+                    System.out.print("ID del Cliente: ");
+                    int idCliente = scanner.nextInt();
+                    scanner.nextLine(); // Consumir el salto de línea
+
+                    System.out.print("Descripción de la rutina: ");
+                    String descripcion = scanner.nextLine();
+
+                    System.out.print("Duración de la rutina (en minutos): ");
+                    int duracion = scanner.nextInt();
+                    scanner.nextLine(); // Consumir el salto de línea
+
+                    System.out.println("Introduce los ejercicios (separados por coma): ");
+                    String ejerciciosInput = scanner.nextLine();
+                    String[] ejercicios = ejerciciosInput.split(",");
+
+                    insertarRutina(conn, idEmpleado, idCliente, descripcion, ejercicios, duracion);
+                    break;
+                case 6:
                     salir = true;
                     break;
                 default:
@@ -265,11 +379,13 @@ public class GestionEmpleados {
         if (e.getErrorCode() == 20001) {
             System.err.println("Error específico: Rol inválido.");
         } else if (e.getErrorCode() == 20002) {
-            System.err.println("Error específico: ID duplicado.");
-        } else if (e.getErrorCode() == 20003) {
             System.err.println("Error específico: Nombre duplicado.");
+        } else if (e.getErrorCode() == 20003) {
+            System.err.println("Error específico: Correo duplicado.");
+        } else if (e.getErrorCode() == 20004) {
+            System.err.println("Error específico: ID duplicado.");
         }
-    }
+    }    
 
     private static void rollback(Connection conn) {
         try {
