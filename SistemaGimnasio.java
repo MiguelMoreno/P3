@@ -1,3 +1,11 @@
+// Práctica 3 DDSI 3ºA-3 Grupo4
+/* Por:
+Miguel Moreno Murcia
+Santiago Romero Alonso
+Alberto García Lara
+Miguel Álvarez de Cienfuegos Cortés
+*/
+
 import java.sql.*;
 import java.util.Scanner;
 
