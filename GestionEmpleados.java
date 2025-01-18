@@ -188,7 +188,7 @@ public class GestionEmpleados {
     /* CREAR RUTINA PARA CLIENTE */
     /***************************************************/
 
-    private static void insertarRutina(Connection conn, int idEmpleado, int idCliente, String descripcion, String[] ejercicios, int duracion) {
+    private static void insertarRutina(Connection conn, int idEmpleado, int idCliente, String nombreRutina, String[] ejercicios, int duracion) {
         try {
             // Comprobar si el empleado es un Administrador
             if (!esAdministrador(conn, idEmpleado)) {
@@ -203,7 +203,7 @@ public class GestionEmpleados {
             }
     
             // Verificar si ya existe una rutina con el mismo nombre para el cliente
-            if (rutinaExistente(conn, idCliente, descripcion)) {
+            if (rutinaExistente(conn, idCliente, nombreRutina)) {
                 System.out.println("Ya existe una rutina con ese nombre para este cliente.");
                 return;  // Terminamos la operación si la rutina ya existe
             }
@@ -229,7 +229,7 @@ public class GestionEmpleados {
                 pstmt.setInt(1, idCliente);
                 pstmt.setArray(2, ejerciciosArray);
                 pstmt.setInt(3, duracion);
-                pstmt.setString(4, descripcion);
+                pstmt.setString(4, nombreRutina);
                 pstmt.executeUpdate();
             }
     
@@ -277,20 +277,68 @@ public class GestionEmpleados {
         return false;  // El cliente no existe
     }
 
-    private static boolean rutinaExistente(Connection conn, int idCliente, String descripcion) {
-        String query = "SELECT COUNT(*) FROM TieneRutina WHERE ID_Cliente = ? AND Descripcion = ? AND Eliminado = 0";
+    private static boolean rutinaExistente(Connection conn, int idCliente, String nombreRutina) {
+        // Modificamos la consulta para que busque el nombre de la rutina, no la descripción.
+        String query = "SELECT COUNT(*) FROM TieneRutina WHERE ID_Cliente = ? AND NombreRutina = ? AND Eliminado = 0";
         try (PreparedStatement pstmt = conn.prepareStatement(query)) {
             pstmt.setInt(1, idCliente);
-            pstmt.setString(2, descripcion);
+            pstmt.setString(2, nombreRutina); // Usamos el nombre de la rutina en lugar de la descripción.
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next() && rs.getInt(1) > 0) {
-                    return true;  // Ya existe una rutina con ese nombre
+                    return true;  // Ya existe una rutina con el mismo nombre para este cliente
                 }
             }
         } catch (SQLException e) {
             manejarErroresSQL(e);
         }
-        return false;  // No existe la rutina
+        return false;  // No existe la rutina con el mismo nombre
+    }
+       
+    /***************************************************/
+    /* AÑADIR EJERCICIO A RUTINA */
+    /***************************************************/
+
+    private static void agregarEjercicioARutina(Connection conn, int idCliente, String nombreRutina, String nombreEjercicio) {
+        // Primero, comprobar si la rutina existe
+        if (!rutinaExistente(conn, idCliente, nombreRutina)) {
+            System.out.println("La rutina no existe o está eliminada. No se puede añadir el ejercicio.");
+            return; // Termina la operación si la rutina no existe
+        }
+    
+        // Verificamos si el ejercicio ya existe en la rutina
+        if (ejercicioExisteEnRutina(conn, idCliente, nombreRutina, nombreEjercicio)) {
+            System.out.println("El ejercicio ya existe en la rutina. No se añadirá.");
+            return; // Termina la operación si el ejercicio ya existe
+        }
+    
+        // Si la rutina existe y el ejercicio no está en la rutina, lo añadimos
+        String query = "UPDATE TieneRutina SET Ejercicios = CONCAT(Ejercicios, ',') WHERE ID_Cliente = ? AND Descripcion = ? AND Eliminado = 0";
+        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setInt(1, idCliente);
+            pstmt.setString(2, nombreRutina);
+            pstmt.executeUpdate();
+            System.out.println("Ejercicio añadido correctamente a la rutina.");
+        } catch (SQLException e) {
+            System.err.println("Error al añadir el ejercicio a la rutina: " + e.getMessage());
+        }
+    }
+    
+    private static boolean ejercicioExisteEnRutina(Connection conn, int idCliente, String nombreRutina, String nombreEjercicio) {
+        String query = "SELECT Ejercicios FROM TieneRutina WHERE ID_Cliente = ? AND Descripcion = ? AND Eliminado = 0";
+        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setInt(1, idCliente);
+            pstmt.setString(2, nombreRutina);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    String ejercicios = rs.getString("Ejercicios");
+                    // Verificamos si el ejercicio ya está en la lista de ejercicios de la rutina
+                    return ejercicios != null && ejercicios.contains(nombreEjercicio);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error al verificar si el ejercicio existe en la rutina: " + e.getMessage());
+        }
+        return false; // Si no se encuentra la rutina o el ejercicio, devolvemos false
     }    
 
     /***************************************************/
@@ -306,7 +354,8 @@ public class GestionEmpleados {
             System.out.println("3. Actualizar Empleado");
             System.out.println("4. Eliminar Empleado");
             System.out.println("5. Crear Rutina");
-            System.out.println("6. Volver al Menú Principal");
+            System.out.println("6. Añadir Ejercicio a Rutina");
+            System.out.println("7. Volver al Menú Principal");
             System.out.print("Elige una opción: ");
 
             int opcion = scanner.nextInt();
@@ -356,7 +405,7 @@ public class GestionEmpleados {
                     int idCliente = scanner.nextInt();
                     scanner.nextLine(); // Consumir el salto de línea
 
-                    System.out.print("Descripción de la rutina: ");
+                    System.out.print("Nombre de la rutina: ");
                     String descripcion = scanner.nextLine();
 
                     System.out.print("Duración de la rutina (en minutos): ");
@@ -370,6 +419,20 @@ public class GestionEmpleados {
                     insertarRutina(conn, idEmpleado, idCliente, descripcion, ejercicios, duracion);
                     break;
                 case 6:
+                    System.out.print("ID del Cliente: ");
+                    int idClienteRutina = scanner.nextInt();
+                    scanner.nextLine(); // Consumir el salto de línea
+
+                    System.out.print("Nombre de la Rutina: ");
+                    String nombreRutina = scanner.nextLine();
+
+                    System.out.print("Nombre del Ejercicio: ");
+                    String nombreEjercicio = scanner.nextLine();
+
+                    // Llamamos al método para agregar el ejercicio a la rutina
+                    agregarEjercicioARutina(conn, idClienteRutina, nombreRutina, nombreEjercicio);
+                    break;
+                case 7:
                     salir = true;
                     break;
                 default:
