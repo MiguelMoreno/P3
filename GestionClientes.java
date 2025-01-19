@@ -3,48 +3,58 @@ import java.util.Scanner;
 
 public class GestionClientes {
 
-	  /***************************************************/
-	/* INSERTAR CLIENTE (con ID manual) */
-	/***************************************************/
-	private static void insertarCliente(Connection conn, int id, String nombre) {
-		try {
-		    conn.setAutoCommit(false); // Deshabilitar autocommit para transacciones manuales
+    /***************************************************/
+    /* INSERTAR CLIENTE (con ID manual) */
+    /***************************************************/
+    private static void insertarCliente(Connection conn, int idSuscripcion, String codigo) {
+        try {
+            conn.setAutoCommit(false); // Deshabilitar autocommit para transacciones manuales
 
-		    // Insertar cliente en la tabla Cliente_Invitado con el ID proporcionado
-		    String query = "INSERT INTO Cliente_Invitado (ID_Cliente_Invitado, Nombre) VALUES (?, ?)";
-		    try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-		        pstmt.setInt(1, id); // Asignar el ID manualmente
-		        pstmt.setString(2, nombre);
-		        pstmt.executeUpdate();
-		    }
+            // Insertar cliente en la tabla ClienteIncluyeSuscripcion_Invitacion
+            String query = "INSERT INTO ClienteIncluyeSuscripcion_Invitacion (ID_Suscripcion, ID_Cliente_Invitado, Codigo, Fecha) VALUES (?, NULL, ?, CURRENT_DATE)";
+            try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+                pstmt.setInt(1, idSuscripcion);
+                pstmt.setString(2, codigo);
+                pstmt.executeUpdate();
+            }
 
-		    conn.commit(); // Confirmar transacción
-		    System.out.println("Cliente insertado correctamente.");
-		} catch (SQLException e) {
-		    manejarErroresSQL(e);
-		    rollback(conn); // Revertir en caso de error
-		} finally {
-		    try {
-		        conn.setAutoCommit(true); // Habilitar autocommit después de la transacción
-		    } catch (SQLException e) {
-		        manejarErroresSQL(e);
-		    }
-		}
-	}
-
+            conn.commit(); // Confirmar transacción
+            System.out.println("Cliente insertado correctamente.");
+        } catch (SQLException e) {
+            manejarErroresSQL(e);
+            rollback(conn); // Revertir en caso de error
+        } finally {
+            try {
+                conn.setAutoCommit(true); // Habilitar autocommit después de la transacción
+            } catch (SQLException e) {
+                manejarErroresSQL(e);
+            }
+        }
+    }
 
     /***************************************************/
     /* LISTAR CLIENTES */
     /***************************************************/
     private static void listarClientes(Connection conn) {
-        String query = "SELECT * FROM Cliente_Invitado WHERE Eliminado = 0";
+        String query = "SELECT * FROM ClienteIncluyeSuscripcion_Invitacion WHERE Eliminado = 0";
         try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
             System.out.println("Lista de clientes:");
             boolean hayClientes = false;
             while (rs.next()) {
                 hayClientes = true;
-                // Mostrar ID, Nombre del cliente
-                System.out.println("ID: " + rs.getInt("ID_Cliente_Invitado") + ", Nombre: " + rs.getString("Nombre"));
+                int idSuscripcion = rs.getInt("ID_SUSCRIPCION");
+                int idCliente = rs.getInt("ID_CLIENTE");
+                // Comprobar si ID_CLIENTE_INVITADO es NULL
+                String clienteInvitado = rs.getString("ID_CLIENTE_INVITADO");
+    
+                // Si el valor es NULL, asignamos un mensaje adecuado
+                if (clienteInvitado == null) {
+                    clienteInvitado = "No hay Clientes asociados";
+                }
+    
+                // Mostrar ID Suscripción, ID Cliente y Cliente Invitado
+                System.out.println("ID Cliente: " + idCliente + ", ID Suscripción: " + idSuscripcion +
+                                   ", Cliente Invitado: " + clienteInvitado);
             }
             if (!hayClientes) {
                 System.out.println("No hay clientes activos para mostrar.");
@@ -52,22 +62,22 @@ public class GestionClientes {
         } catch (SQLException e) {
             System.err.println("Error al listar clientes: " + e.getMessage());
         }
-    }
+    }       
 
     /***************************************************/
     /* ACTUALIZAR CLIENTE */
     /***************************************************/
-    private static void actualizarCliente(Connection conn, int id, String nuevoNombre) {
-        String query = "UPDATE Cliente_Invitado SET Nombre = ? WHERE ID_Cliente_Invitado = ?";
+    private static void actualizarCliente(Connection conn, int idSuscripcion, String nuevoCodigo) {
+        String query = "UPDATE ClienteIncluyeSuscripcion_Invitacion SET Codigo = ? WHERE ID_Suscripcion = ? AND ID_Cliente_Invitado IS NULL";
         try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-            pstmt.setString(1, nuevoNombre);
-            pstmt.setInt(2, id);
+            pstmt.setString(1, nuevoCodigo);
+            pstmt.setInt(2, idSuscripcion);
             int filasAfectadas = pstmt.executeUpdate();
             if (filasAfectadas > 0) {
                 conn.commit();
                 System.out.println("Cliente actualizado correctamente.");
             } else {
-                System.out.println("No se encontró ningún cliente con el ID especificado.");
+                System.out.println("No se encontró ningún cliente con los ID especificados.");
             }
         } catch (SQLException e) {
             manejarErroresSQL(e);
@@ -78,15 +88,15 @@ public class GestionClientes {
     /***************************************************/
     /* ELIMINAR CLIENTE */
     /***************************************************/
-    private static void eliminarCliente(Connection conn, int id) {
+    private static void eliminarCliente(Connection conn, int idSuscripcion) {
         try {
-            // Comprobar si el cliente existe en la tabla Cliente_Invitado
-            String queryCheckCliente = "SELECT COUNT(*) FROM Cliente_Invitado WHERE ID_Cliente_Invitado = ?";
+            // Comprobar si el cliente existe en la tabla ClienteIncluyeSuscripcion_Invitacion
+            String queryCheckCliente = "SELECT COUNT(*) FROM ClienteIncluyeSuscripcion_Invitacion WHERE ID_Suscripcion = ? AND ID_Cliente_Invitado IS NULL";
             try (PreparedStatement pstmt = conn.prepareStatement(queryCheckCliente)) {
-                pstmt.setInt(1, id);
+                pstmt.setInt(1, idSuscripcion);
                 try (ResultSet rs = pstmt.executeQuery()) {
                     if (rs.next() && rs.getInt(1) == 0) {
-                        System.out.println("No se encontró ningún cliente con el ID especificado.");
+                        System.out.println("No se encontró ningún cliente con los ID especificados.");
                         return; // No existe el cliente, no hacemos nada
                     }
                 }
@@ -95,16 +105,16 @@ public class GestionClientes {
             // Deshabilitar autocommit para manejar la transacción manualmente
             conn.setAutoCommit(false);
 
-            // Actualizar el campo Eliminado en la tabla Cliente_Invitado
-            String queryCliente = "UPDATE Cliente_Invitado SET Eliminado = 1 WHERE ID_Cliente_Invitado = ?";
+            // Actualizar el campo Eliminado en la tabla ClienteIncluyeSuscripcion_Invitacion
+            String queryCliente = "UPDATE ClienteIncluyeSuscripcion_Invitacion SET Eliminado = 1 WHERE ID_Suscripcion = ? AND ID_Cliente_Invitado IS NULL";
             try (PreparedStatement pstmt = conn.prepareStatement(queryCliente)) {
-                pstmt.setInt(1, id);
+                pstmt.setInt(1, idSuscripcion);
                 int filasAfectadasCliente = pstmt.executeUpdate();
                 if (filasAfectadasCliente > 0) {
                     conn.commit();
                     System.out.println("Cliente marcado como eliminado correctamente.");
                 } else {
-                    System.out.println("No se encontró ningún cliente con el ID especificado.");
+                    System.out.println("No se encontró ningún cliente con los ID especificados.");
                 }
             }
         } catch (SQLException e) {
@@ -122,15 +132,14 @@ public class GestionClientes {
     /***************************************************/
     /* ASOCIAR CLIENTE CON SUSCRIPCION */
     /***************************************************/
-    private static void asociarClienteConSuscripcion(Connection conn, int idCliente, int idSuscripcion, String codigo) {
+    private static void asociarClienteConSuscripcion(Connection conn, int idSuscripcion, String codigo) {
         try {
             // Insertar en la tabla ClienteIncluyeSuscripcion_Invitacion
-            String query = "INSERT INTO ClienteIncluyeSuscripcion_Invitacion (ID_Cliente_Invitado, ID_Suscripcion, Codigo, Fecha) " +
-                           "VALUES (?, ?, ?, CURRENT_DATE)";
+            String query = "INSERT INTO ClienteIncluyeSuscripcion_Invitacion (ID_Suscripcion, ID_Cliente_Invitado, Codigo, Fecha) " +
+                    "VALUES (?, NULL, ?, CURRENT_DATE)";
             try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-                pstmt.setInt(1, idCliente);
-                pstmt.setInt(2, idSuscripcion);
-                pstmt.setString(3, codigo);
+                pstmt.setInt(1, idSuscripcion);
+                pstmt.setString(2, codigo);
                 pstmt.executeUpdate();
             }
 
@@ -162,39 +171,36 @@ public class GestionClientes {
 
             switch (opcion) {
                 case 1:
-					System.out.print("ID del Cliente: ");
-					int id = scanner.nextInt();
-					scanner.nextLine(); // Consumir el salto de línea
-
-					System.out.print("Nombre del Cliente: ");
-					String nombre = scanner.nextLine();
-					insertarCliente(conn, id, nombre);  // Llamada con ID manual
-					break;
+                    System.out.print("ID Suscripción: ");
+                    int idSuscripcion = scanner.nextInt();
+                    scanner.nextLine(); // Consumir el salto de línea
+                    System.out.print("Código de la Suscripción: ");
+                    String codigo = scanner.nextLine();
+                    insertarCliente(conn, idSuscripcion, codigo);  // Llamada con datos modificados
+                    break;
                 case 2:
                     listarClientes(conn);
                     break;
                 case 3:
-                    System.out.print("ID del Cliente a actualizar: ");
-                    int idActualizar = scanner.nextInt();
+                    System.out.print("ID Suscripción a actualizar: ");
+                    int idSuscripcionActualizar = scanner.nextInt();
                     scanner.nextLine();
-                    System.out.print("Nuevo Nombre: ");
-                    String nuevoNombre = scanner.nextLine();
-                    actualizarCliente(conn, idActualizar, nuevoNombre);
+                    System.out.print("Nuevo Código: ");
+                    String nuevoCodigo = scanner.nextLine();
+                    actualizarCliente(conn, idSuscripcionActualizar, nuevoCodigo);
                     break;
                 case 4:
-                    System.out.print("ID del Cliente a eliminar: ");
-                    int idEliminar = scanner.nextInt();
-                    eliminarCliente(conn, idEliminar);
+                    System.out.print("ID Suscripción a eliminar: ");
+                    int idSuscripcionEliminar = scanner.nextInt();
+                    eliminarCliente(conn, idSuscripcionEliminar);
                     break;
                 case 5:
-                    System.out.print("ID del Cliente: ");
-                    int idCliente = scanner.nextInt();
-                    System.out.print("ID de la Suscripción: ");
-                    int idSuscripcion = scanner.nextInt();
+                    System.out.print("ID Suscripción: ");
+                    int idSuscripcionAsociar = scanner.nextInt();
                     scanner.nextLine();
                     System.out.print("Código de la Suscripción: ");
-                    String codigo = scanner.nextLine();
-                    asociarClienteConSuscripcion(conn, idCliente, idSuscripcion, codigo);
+                    String codigoAsociar = scanner.nextLine();
+                    asociarClienteConSuscripcion(conn, idSuscripcionAsociar, codigoAsociar);
                     break;
                 case 6:
                     salir = true;
@@ -215,7 +221,7 @@ public class GestionClientes {
         } else if (e.getErrorCode() == 20002) {
             System.err.println("Error específico: ID duplicado.");
         } else if (e.getErrorCode() == 20003) {
-            System.err.println("Error específico: Nombre duplicado.");
+            System.err.println("Error específico: Código duplicado.");
         }
     }
 
