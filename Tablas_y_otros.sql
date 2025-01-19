@@ -117,15 +117,14 @@ CREATE TABLE Oferta_Aplicar (
     Nombre VARCHAR2(100) NOT NULL,
     Descuento NUMBER(5, 2) CHECK (Descuento > 0),
     Duracion VARCHAR2(50),
-    
+    Eliminado INT DEFAULT 0 NOT NULL,
+    FOREIGN KEY (ID_Cliente) REFERENCES ClienteIncluyeSuscripcion_Invitacion(ID_Cliente) ON DELETE CASCADE
+);
+
 -- Crear tabla Ejercicio
 CREATE TABLE Ejercicio (
     ID_Ejercicio INT PRIMARY KEY,
     ID_Rutina INT,  -- Relacionado con la rutina
     Descripcion VARCHAR2(255),
     CONSTRAINT fk_rutina FOREIGN KEY (ID_Rutina) REFERENCES TieneRutina(ID_Rutina)
-);
-
-    Eliminado INT DEFAULT 0 NOT NULL,
-    FOREIGN KEY (ID_Cliente) REFERENCES ClienteIncluyeSuscripcion_Invitacion(ID_Cliente) ON DELETE CASCADE
 );
