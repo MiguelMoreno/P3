@@ -51,6 +51,7 @@ CREATE TABLE Escoge_Actividad (
     Nombre VARCHAR2(100) NOT NULL,
     Descripcion VARCHAR2(500),
     Eliminado INT DEFAULT 0 NOT NULL,
+    Plazas INT,
     FOREIGN KEY (ID_Entrenador) REFERENCES Entrenador(ID_Entrenador) ON DELETE CASCADE
 );
 
