@@ -291,9 +291,9 @@ public class SistemaGimnasio {
                         break;
                     case 4:
                         System.out.println("Gestión de Tienda seleccionado.");
-                        // Implementar funcionalidad
-                        System.out.println("Gestión de Tienda no implementada en esta versión.");
+                        GestionTienda.mostrarMenuGestionTienda(conn, scanner);
                         break;
+                    
                     case 5:
                         System.out.println("Saliendo del sistema...");
                         salir = true;
