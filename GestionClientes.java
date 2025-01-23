@@ -1,5 +1,6 @@
 import java.sql.*;
 import java.util.Scanner;
+import java.util.regex.Pattern;
 
 public class GestionClientes {
 
@@ -85,6 +86,46 @@ public class GestionClientes {
         }
     }
 
+    public static void actualizarCorreoEmpleado(Connection conn, int idEmpleado, String nuevoCorreo) {
+        // Expresión regular para validar el formato del correo electrónico
+        String regexCorreo = "^[\\w._%+-]+@[\\w.-]+\\.[a-zA-Z]{2,}$";
+        if (!Pattern.matches(regexCorreo, nuevoCorreo)) {
+            System.out.println("Error: El correo electrónico tiene un formato inválido.");
+            return;
+        }
+
+        String query = "UPDATE Empleado SET Correo = ? WHERE ID_Empleado = ? AND Eliminado = 0";
+
+        try {
+            // Deshabilitar autocommit para manejar la transacción manualmente
+            conn.setAutoCommit(false);
+
+            // Intentar realizar la actualización
+            try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+                pstmt.setString(1, nuevoCorreo);
+                pstmt.setInt(2, idEmpleado);
+
+                int filasAfectadas = pstmt.executeUpdate();
+                if (filasAfectadas > 0) {
+                    conn.commit(); // Confirmar transacción
+                    System.out.println("Correo actualizado correctamente.");
+                } else {
+                    System.out.println("No se encontró el empleado o está marcado como eliminado.");
+                    conn.rollback(); // Revertir la transacción en caso de no encontrar el empleado
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error al actualizar el correo del empleado: " + e.getMessage());
+            rollback(conn); // Revertir en caso de error
+        } finally {
+            try {
+                conn.setAutoCommit(true); // Restaurar autocommit
+            } catch (SQLException e) {
+                System.err.println("Error al restaurar autocommit: " + e.getMessage());
+            }
+        }
+    }
+
     /***************************************************/
     /* ELIMINAR CLIENTE */
     /***************************************************/
@@ -163,7 +204,8 @@ public class GestionClientes {
             System.out.println("3. Actualizar Cliente");
             System.out.println("4. Eliminar Cliente");
             System.out.println("5. Asociar Cliente con Suscripción");
-            System.out.println("6. Volver al Menú Principal");
+            System.out.println("6. Actualizar Correo Electronico de un Cliente");
+            System.out.println("7. Volver al Menú Principal");
             System.out.print("Elige una opción: ");
 
             int opcion = scanner.nextInt();
@@ -171,7 +213,7 @@ public class GestionClientes {
 
             switch (opcion) {
                 case 1:
-                    System.out.print("ID Suscripción: ");
+                    System.out.print("ID Cliente: ");
                     int idSuscripcion = scanner.nextInt();
                     scanner.nextLine(); // Consumir el salto de línea
                     System.out.print("Código de la Suscripción: ");
@@ -182,7 +224,7 @@ public class GestionClientes {
                     listarClientes(conn);
                     break;
                 case 3:
-                    System.out.print("ID Suscripción a actualizar: ");
+                    System.out.print("ID Cliente a actualizar: ");
                     int idSuscripcionActualizar = scanner.nextInt();
                     scanner.nextLine();
                     System.out.print("Nuevo Código: ");
@@ -190,12 +232,12 @@ public class GestionClientes {
                     actualizarCliente(conn, idSuscripcionActualizar, nuevoCodigo);
                     break;
                 case 4:
-                    System.out.print("ID Suscripción a eliminar: ");
+                    System.out.print("ID Cliente a eliminar: ");
                     int idSuscripcionEliminar = scanner.nextInt();
                     eliminarCliente(conn, idSuscripcionEliminar);
                     break;
                 case 5:
-                    System.out.print("ID Suscripción: ");
+                    System.out.print("ID Cliente: ");
                     int idSuscripcionAsociar = scanner.nextInt();
                     scanner.nextLine();
                     System.out.print("Código de la Suscripción: ");
@@ -203,6 +245,14 @@ public class GestionClientes {
                     asociarClienteConSuscripcion(conn, idSuscripcionAsociar, codigoAsociar);
                     break;
                 case 6:
+                    System.out.print("ID Cliente: ");
+                    int idCliente = scanner.nextInt();
+                    scanner.nextLine();
+                    System.out.print("Nuevo Correo Electronico: ");
+                    String nuevoCorreo = scanner.nextLine();
+                    asociarClienteConSuscripcion(conn, idCliente, nuevoCorreo);
+                    break;
+                case 7:
                     salir = true;
                     break;
                 default:
@@ -215,15 +265,16 @@ public class GestionClientes {
     /* MANEJO DE ERRORES */
     /***************************************************/
     private static void manejarErroresSQL(SQLException e) {
-        System.err.println("Error: " + e.getMessage());
         if (e.getErrorCode() == 20001) {
-            System.err.println("Error específico: Rol inválido.");
+            System.err.println("Error: El código de suscripción ya existe. " + e.getMessage());
         } else if (e.getErrorCode() == 20002) {
-            System.err.println("Error específico: ID duplicado.");
+            System.err.println("Error: La fecha de suscripción no puede ser anterior a hoy. " + e.getMessage());
         } else if (e.getErrorCode() == 20003) {
-            System.err.println("Error específico: Código duplicado.");
+            System.err.println("Error: El cliente ya está asociado a esta suscripción. " + e.getMessage());
+        } else {
+            System.err.println("Error general en la inserción: " + e.getMessage());
         }
-    }
+    }   
 
     private static void rollback(Connection conn) {
         try {
