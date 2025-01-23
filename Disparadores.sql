@@ -61,70 +61,54 @@ BEGIN
 
 END;
 
+/***********************************************************/
+/* Disparador que valida la correcta inserción de una actividad */
+/***********************************************************/
 
-/***********************************************************/
---Disparador que valida la correcta inserción de un Cliente NO IMPLEMENTADO
-/***********************************************************/
-  
-CREATE OR REPLACE TRIGGER validar_insercion_cliente
-BEFORE INSERT ON cliente
+CREATE OR REPLACE TRIGGER validar_insercion_actividad
+BEFORE INSERT OR UPDATE ON Escoge_Actividad
 FOR EACH ROW
 DECLARE
-  contador_id INTEGER;
-  contador_email INTEGER;
+  v_count INTEGER;
 BEGIN
-  -- Verificar que el ID del cliente sea único
-  SELECT COUNT(*) INTO contador_id
-  FROM cliente
-  WHERE idCliente = :NEW.idCliente;
+  -- Validar que el ID del entrenador exista en la tabla Entrenador
+  IF INSERTING OR UPDATING THEN
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Entrenador
+    WHERE ID_Entrenador = :NEW.ID_Entrenador;
 
-  IF contador_id > 0 THEN
-    RAISE_APPLICATION_ERROR(-20001, 'El ID del cliente ya existe. Debe ser único.');
+    IF v_count = 0 THEN
+      RAISE_APPLICATION_ERROR(-20001, 'El ID del entrenador no existe en la tabla Entrenador.');
+    END IF;
   END IF;
 
-  -- Verificar que el correo electrónico sea único
-  SELECT COUNT(*) INTO contador_email
-  FROM cliente
-  WHERE email = :NEW.email;
-
-  IF contador_email > 0 THEN
-    RAISE_APPLICATION_ERROR(-20002, 'El correo electrónico ya existe. Debe ser único.');
+  -- Validar que las fechas sean consistentes: Fecha de inicio <= Fecha de fin
+  IF INSERTING OR UPDATING THEN
+    IF :NEW.Fecha_Ini > :NEW.Fecha_Fin THEN
+      RAISE_APPLICATION_ERROR(-20002, 'La fecha de inicio debe ser menor o igual a la fecha de fin.');
+    END IF;
   END IF;
 
-  -- Verificar que el nombre tenga al menos 3 caracteres
-  IF LENGTH(:NEW.nombre) < 3 THEN
-    RAISE_APPLICATION_ERROR(-20003, 'El nombre del cliente debe tener al menos 3 caracteres.');
-  END IF;
-END;
-/
-
-/***********************************************************/
---Disparador que valida la correcta inserción de un Producto NO IMPLEMENTADO
-/***********************************************************/
-  
-CREATE OR REPLACE TRIGGER validar_insercion_producto
-BEFORE INSERT ON producto
-FOR EACH ROW
-DECLARE
-  contador_id INTEGER;
-BEGIN
-  -- Verificar que el ID del producto sea único
-  SELECT COUNT(*) INTO contador_id
-  FROM producto
-  WHERE idProducto = :NEW.idProducto;
-
-  IF contador_id > 0 THEN
-    RAISE_APPLICATION_ERROR(-20001, 'El ID del producto ya existe. Debe ser único.');
+  -- Validar que el número de plazas sea mayor a 0
+  IF INSERTING OR UPDATING THEN
+    IF :NEW.Plazas <= 0 THEN
+      RAISE_APPLICATION_ERROR(-20003, 'El número de plazas debe ser mayor a 0.');
+    END IF;
   END IF;
 
-  -- Verificar que el stock no sea negativo
-  IF :NEW.stock < 0 THEN
-    RAISE_APPLICATION_ERROR(-20002, 'El stock no puede ser negativo.');
-  END IF;
+  -- Validar que el nombre de la actividad no esté duplicado (ignorando mayúsculas y actividades eliminadas)
+  IF INSERTING OR (UPDATING AND :NEW.Nombre != :OLD.Nombre) THEN
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Escoge_Actividad
+    WHERE LOWER(Nombre) = LOWER(:NEW.Nombre)
+      AND Eliminado = 0
+      AND ID_Actividad != :NEW.ID_Actividad;
 
-  -- Verificar que el precio sea mayor que 0
-  IF :NEW.precio <= 0 THEN
-    RAISE_APPLICATION_ERROR(-20003, 'El precio debe ser mayor que 0.');
+    IF v_count > 0 THEN
+      RAISE_APPLICATION_ERROR(-20004, 'El nombre de la actividad ya existe y no ha sido eliminado.');
+    END IF;
   END IF;
 END;
 /
