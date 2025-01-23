@@ -112,3 +112,93 @@ BEGIN
   END IF;
 END;
 /
+
+/***********************************************************/
+/* Disparador que valida la correcta inserción de un Cliente */
+/***********************************************************/
+  
+-- VALIDAR CLIENTE
+CREATE OR REPLACE TRIGGER trg_validar_cliente
+BEFORE INSERT ON ClienteIncluyeSuscripcion_Invitacion
+FOR EACH ROW
+DECLARE
+    v_count NUMBER;
+BEGIN
+    -- Verificar que el código no esté duplicado
+    SELECT COUNT(*)
+    INTO v_count
+    FROM ClienteIncluyeSuscripcion_Invitacion
+    WHERE Codigo = :NEW.Codigo;
+
+    IF v_count > 0 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'El código de suscripción ya existe. Debe ser único.');
+    END IF;
+
+    -- Validar que la fecha de suscripción no sea anterior a la fecha actual
+    IF :NEW.Fecha < SYSDATE THEN
+        RAISE_APPLICATION_ERROR(-20002, 'La fecha de suscripción no puede ser anterior a hoy.');
+    END IF;
+
+    -- Comprobar si la suscripción ya está asignada al cliente
+    SELECT COUNT(*)
+    INTO v_count
+    FROM ClienteIncluyeSuscripcion_Invitacion
+    WHERE ID_Suscripcion = :NEW.ID_Suscripcion
+      AND ID_Cliente_Invitado = :NEW.ID_Cliente_Invitado;
+
+    IF v_count > 0 THEN
+        RAISE_APPLICATION_ERROR(-20003, 'El cliente ya está asociado a esta suscripción.');
+    END IF;
+
+END;
+
+/***********************************************************/
+/* Disparador que valida la compra de un producto */
+/***********************************************************/
+
+CREATE OR REPLACE TRIGGER validar_compra_producto
+BEFORE INSERT ON Comprar
+FOR EACH ROW
+DECLARE
+  v_stock_disponible INTEGER;
+  v_cliente_existente INTEGER;
+BEGIN
+  -- Validar que el cliente exista en la tabla ClienteIncluyeSuscripcion_Invitacion
+  SELECT COUNT(*)
+  INTO v_cliente_existente
+  FROM ClienteIncluyeSuscripcion_Invitacion
+  WHERE ID_Cliente = :NEW.ID_Cliente;
+
+  IF v_cliente_existente = 0 THEN
+    RAISE_APPLICATION_ERROR(-20001, 'El cliente no está registrado en el sistema.');
+  END IF;
+
+  -- Verificar la disponibilidad de stock del producto
+  SELECT Stock
+  INTO v_stock_disponible
+  FROM Producto
+  WHERE ID_Producto = :NEW.ID_Producto
+    AND Eliminado = 0;
+
+  IF v_stock_disponible IS NULL THEN
+    RAISE_APPLICATION_ERROR(-20002, 'El producto no existe o ha sido eliminado.');
+  END IF;
+
+  IF :NEW.Cantidad_Venta > v_stock_disponible THEN
+    RAISE_APPLICATION_ERROR(-20003, 'No hay suficiente stock disponible para realizar la compra.');
+  END IF;
+
+  -- Validar que la cantidad sea positiva
+  IF :NEW.Cantidad_Venta <= 0 THEN
+    RAISE_APPLICATION_ERROR(-20004, 'La cantidad a comprar debe ser mayor que cero.');
+  END IF;
+
+  -- Validar que el total de la venta sea positivo
+  IF :NEW.Total_Venta <= 0 THEN
+    RAISE_APPLICATION_ERROR(-20005, 'El total de la venta debe ser mayor que cero.');
+  END IF;
+
+  -- Nota: El stock se actualizará mediante un procedimiento o en el método de negocio correspondiente.
+END;
+/
+
