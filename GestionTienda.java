@@ -84,6 +84,9 @@ public class GestionTienda {
         }
     }
 
+    /***************************************************/
+    /* COMPRAR PRODUCTO */
+    /***************************************************/
     private static void comprarProducto(Connection conn, int idProducto, int idCliente, int cantidad, double totalVenta) {
         try {
             // 1. Verificar la existencia del cliente
@@ -142,6 +145,7 @@ public class GestionTienda {
             rollback(conn);
         }
    }
+
     /***************************************************/
     /* AÑADIR PRODUCTO A LISTA DE DESEADOS */
     /***************************************************/
@@ -271,8 +275,6 @@ public class GestionTienda {
         }
     }
     
-
-
     private static void rollback(Connection conn) {
         try {
             conn.rollback();
