@@ -410,6 +410,18 @@ public class GestionActividades {
 	        case 2292: // Error de eliminación de clave referenciada en Oracle
 	            System.err.println("Error específico: No se puede eliminar porque está referenciado en otra tabla.");
 	            break;
+            case 20001:
+                System.err.println("Error específico: El ID del entrenador no existe en la tabla Entrenador.");
+                break;
+            case 20002:
+                System.err.println("Error específico: La fecha de inicio debe ser menor o igual a la fecha de fin.");
+                break;
+            case 20003:
+                System.err.println("El número de plazas debe ser mayor a 0.");
+                break;
+            case 20004:
+                System.err.println("El nombre de la actividad ya existe y no ha sido eliminado.");
+                break;
 	        default:
 	            System.err.println("Consulta la documentación del error para más detalles.");
 	    }
